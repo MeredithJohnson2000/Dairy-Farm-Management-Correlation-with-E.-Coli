@@ -1,0 +1,181 @@
+---
+title: Dairy Farm Management and Percentage of Farm Samples Containing Tetracycline
+  Resistant E. coli
+output:
+  pdf_document:
+    includes:
+      in_header: "wrap-code.tex"
+---
+
+### Abstract
+
+My goal is to identify possible farm management causes of prevalent tetracycline resistant E. coli samples. The data consists of farm management and longitudinal data on antibiotic use and antibiotic resistant E. coli for 53 dairy farms in the South-West of England between 2017-2019. I used one-way anova tests to determine if the percentage of samples for a given farm found to contain tetracycline resistant E. coli is significantly different among 'first choice/most commonly used class of antibiotic for clinical mastitis' levels and significantly different among 'antibiotic most commonly used for mastitis at the start of the project' levels. I also used a Pearson's product-moment correlation test to determine if the percentage of samples for a given farm found to contain tetracycline resistant E. coli is positively correlated with 'Amount of tetracycline used in mg/PCU.' I conclude that 'Amount of tetracycline used in mg/PCU' is positively correlated with the percentage of samples for a given farm found to contain tetracycline resistant E. coli; There is no significant difference in percentage of samples containing tetracycline resistant E. coli among 'first choice/most commonly used class of antibiotic for clinical mastitis' factor levels. And there is a significant difference in percentage of samples containing tetracycline resistant E. coli among 'antibiotic that was most commonly used for mastitis at the start of the project' factor levels.
+
+### Introduction
+
+$\textit{Farm management and longitudinal data on antibiotic use and antibiotic resistant E. coli for 53 dairy }$ $\textit{farms in the South-West of England between 2017-2019}$ data used in this analysis was part of the OH-STAR (One Health Selection and Transmission of Antimicrobial Resistance) project at the University of Bristol, funded by the Antimicrobial Resistance Cross Council Initiative supported by the seven United Kingdom research councils. Samples and data were collected from 53 dairy farms in the South-West of England between January 2017 and December 2019. The data consists of farm demographic and management data collected from questionnaires administered to the farmer participants, data recorded at the time of collecting each sample, lab results from screening of samples for presence of E. coli resistant to the named antibiotics and from genetic analysis of selected isolates from the samples, and prescription records acquired from veterinary practices and farm records. Farms were visited monthly between January 2017 and December 2018. Samples were collected from various areas of each farm: Samples were collected using sterile overshoes (over-boot socks) traversing farm areas; Where access was restricted (e.g. for pens containing single or pairs of calves), samples were collected directly from the ground using gloved hands. Samples were refrigerated from collection to processing, prepared, spread onto TBX agar containing no antibiotic or containing tetracycline, amoxicillin, ciprofloxacin, streptomycin, or cephalexin. After incubation, the number of blue colonies (indicating E. coli) counted (Schubert et al.).
+
+Antimicrobial resistance, and particularly antibacterial resistance (ABR), is a significant global challenge. Many countries are implementing plans to reduce the use of antibacterial drugs (ABs) in food-producing animals. One reason for reducing AB use in farming is to reduce the prevalence of ABR bacteria carried by farm animals. Escherichia coli is a species commonly found in animal feces and considered one of the most significant potential zoonotic ABR threats to humans (Schubert et al.).
+
+Since the introduction of penicillin in the 1940s, which started the era of antibiotics, these agents have been recognized as one of the greatest advances in modern medicine and a turning point in human history. In 1900, infectious disease was a leading cause of death; in 2000, infectious diseases were responsible for only a small percentage of deaths in developed nations [3]. Unfortunately for humans, bacteria have evolved different mechanisms that have rendered them resistant to antibiotics, to the point that since not long ago antimicrobial resistance has become a global threat to public health systems worldwide (Galindo-Méndez et al.).
+  
+My hypothesis is that the percentage of samples for a given farm found to contain tetracycline resistant E. coli is significantly different among 'first choice/most commonly used class of antibiotic for clinical mastitis' levels and significantly different among 'antibiotic most commonly used for mastitis at the start of the project' levels. I also hypothesize that the percentage of samples for a given farm found to contain tetracycline resistant E. coli is positively correlated with 'Amount of tetracycline used in mg/PCU.'
+
+
+
+```{r setup, include=FALSE, message=FALSE, warning = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#important packages! 
+library(readr)
+library(here)
+library(ggplot2)
+library(car)
+library(tidyverse)
+library(psych)
+```
+
+
+```{r}
+#read in data
+dairyFarms = read.csv("/Users/merej/Downloads/S22 EEMB 146/S22 EEMB Final Project/dairy_farms_dataset.csv")
+```
+
+```{r}
+resistance <- dairyFarms %>%
+  select(ctx_m, amp_c:amoxR, plain_undiluted) #select subset
+print(paste('The dimensions of the selected subset of the dairy farms data are', nrow(resistance), 'rows and', ncol(resistance), 'columns.')) #display dimensions of set
+head(resistance)
+```
+
+
+```{r}
+pairs.panels(resistance, cor = TRUE, main = "Correlation Coefficents") #display correlation coefficients
+
+resistance_fit <- lm(log(plain_undiluted + 1)~., resistance) #run linear model #log transformation
+summary(resistance_fit) #display summary statistics
+res <- resistance_fit$residuals #get residuals
+
+#Check normality assumption
+shapiro.test(res) #Shapiro_Wilk test on residuals
+
+#Check homogeneity of variance assumption
+plot(res, main = "Residuals Plot") #residuals plot
+```
+The percentage of samples for a given farm found to contain tetracycline resistant E. coli are examined in the following sections due to the results of this linear model. The summary statistics indicate that the presence of tetracycline resistant E. coli in a sample is the most significant predictor of 'Total E. coli count in the plated sample on selective agar without antibiotic' which is stored in the variable plain_undiluted, with a test statistic of 23.250 and p-value < 2e-16. The assumptions of linear regression are met by this model: no two predictors are perfectly co-linear; the residuals are not found to be normal however, the data contains 4578 points which is enough to assume normality through the Central Limit Theorem. The even spread of points of the residuals plot demonstrates the homogeneity of variance assumption. This assumption was met through the use of a log transformation.
+
+### Exploratory Data Analysis
+```{r}
+tetRresistance <- dairyFarms %>%
+  select(tetR, farm) %>%
+  group_by(farm) %>%
+  summarise(tetRPercent = sum(tetR)/n()) #subset, groupby, and summarize a new variable
+  #tetRPercent = percentage of samples for a given farm found to contain tetracycline resistant E. coli
+
+predictorsDup <- dairyFarms %>%
+  select(farm, whichclinresp, firstmastitis, tet) #subset desired variables
+
+#remove duplicate observations
+predictors <- predictorsDup[!duplicated(predictorsDup$farm),] #all variables contained in predictorsDup are farm specific (samples from the same farm will have the same value for each of these variables)
+
+#change these variable types to factor 
+predictors$whichclinresp <- as.factor(predictors$whichclinresp)
+predictors$firstmastitis <- as.factor(predictors$firstmastitis)
+
+tetRresistance <- merge(tetRresistance, predictors) %>% select(-farm) %>% na.omit() #merge sets, deselect farm, and omit observations containing NAs
+```
+A Shapiro-Wilk normality test p-value > 0.05 is an indication of normality. (The null hypothesis states that the data is normally distributed and a p-value > 0.05 allows one to fail to reject the null hypothesis.)
+```{r}
+par(mfcol = c(1,2))
+
+hist(tetRresistance$tetRPercent, main = 'No Transformation') #to visualize normality
+shapiro.test(tetRresistance$tetRPercent) #Shapiro-Wilk Normality Test
+
+hist((tetRresistance$tetRPercent)^2, main = 'Square Transformation') #to visualize normality
+shapiro.test((tetRresistance$tetRPercent)^2) #Shapiro-Wilk Normality Test
+tetRresistance$tetRPercent.sqr <- (tetRresistance$tetRPercent)^2 #make new variable for the square of tetRPercent
+
+plot(tetRresistance$tetRPercent.sqr, main = 'tetRPercent.sqr Scatterplot')
+```
+The Shapiro-Wilk Normality Test and histogram of the percentage of samples for a given farm found to contain tetracycline resistant E. coli indicate normality while the histogram is slightly left skewed. A Square transformation makes the data more normal as indicated and depicted through the Shapiro-Wilk Normality Test and histogram of the transformed data. The transformed data also appears to have equal variance as displayed by the even distribution of points in the scatter plot.
+
+```{r}
+par(mfcol = c(1,2))
+
+hist(tetRresistance$tet, main = 'No Transformation') #to visualize normality
+shapiro.test(tetRresistance$tet) #Shapiro-Wilk Normality Test
+
+hist(log(tetRresistance$tet + 1), main = 'Log Transformation') #to visualize normality
+shapiro.test(log(tetRresistance$tet + 1)) #Shapiro-Wilk Normality Test
+tetRresistance$tet.log <- log(tetRresistance$tetRPercent + 1) #make new variable for the log transformation of tet
+
+plot(tetRresistance$tet.log, main = 'tet.log Scatterplot')
+
+plot(tetRresistance$tet.log, tetRresistance$tetRPercent.sqr, main = 'tetRPercent.sqr~tet.log')
+```
+The Amount of tetracycline used in mg/PCU appears is right skewed and not normally distributed from the histogram and Shapiro-Wilk Normality test of the non-transformed data. A log transformation appears to make the data normally distributed from the histogram and Shapiro-Wilk Normality test of the transformed data. The transformed data also has equal variance as displayed by the even distribution of points in the scatter plot. The transformed data has a strong linear relationship with the square of the percentage of samples for a given farm found to contain tetracycline resistant E. coli as depicted in the tetRPercent~tet.log plot.
+
+```{r fig1, fig.height = 7, fig.width = 9}
+par(mfrow = c(2, 1))
+
+boxplot(tetRresistance$tetRPercent.sqr~tetRresistance$whichclinresp, main = 'Boxplot of First Choice Antibiotic for Mastitis', outline = TRUE)
+
+boxplot(tetRresistance$tetRPercent.sqr~tetRresistance$firstmastitis, main = 'Boxplot of Antibiotic Most Used for Mastitis at Start of Project', outline = TRUE)
+```
+The 'first choice/most commonly used class of antibiotic for clinical mastitis' data has no outliers and the factor levels have similar mean and variance except for factor levels 'Other/don't know' and 'Penicillimoxycillin' which appear to correspond with farms that have very low percentages of samples containing tetracycline resistant E. coli. The 'antibiotic that was most commonly used for mastitis at the start of the project' data has outliers on the 'amoxyclav' factor level. 'Mastiplan LC' appears to correspond with farms that have very low percentages of samples containing tetracycline resistant E. coli; While 'Orbenin LA' corresponds with farms that have very high percentages of samples containing tetracycline resistant E. coli. All the factor levels have different means and variances.
+
+### Statistical Methods
+```{r}
+cor.test(tetRresistance$tet.log, tetRresistance$tetRPercent.sqr)
+```
+Here I have run a Pearson's product-moment correlation test on the log transformed amount of tetracycline used in mg/PCU and square transformed percentage of samples containing tetracycline resistant E. coli. Null hypothesis: Amount of tetracycline used in mg/PCU and percentage of samples containing tetracycline resistant E. coli have no relationship ($\rho = 0$). Alternative hypothesis: the variables are correlated ($\rho \neq 0$). The assumptions of a Pearson's product-moment correlation test include that the data is a random sample as well as that X is normally distributed with equal variance for all values of Y, and Y is normally distributed with equal variance for all values of X. The tetRPercent~tet.log plot demonstrates this assumption. The Pearson's product-moment correlation test yields a p-value < 0.05; Therefore, we may reject the null hypothesis and conclude that the amount of tetracycline used in mg/PCU and percentage of samples containing tetracycline resistant E. coli are correlated ($\rho \neq 0$). The estimated correlation coefficient is 0.985424, which is very high.
+
+```{r}
+whichclinresp_fit <- lm(tetRPercent.sqr~whichclinresp, tetRresistance) #run a linear model
+whichclinresp_res <- whichclinresp_fit$residuals #retrieve the residuals from the model
+shapiro.test(whichclinresp_res) #run a Shapiro-Wilk to test the normality of residuals assumption
+leveneTest(tetRresistance$tetRPercent.sqr, tetRresistance$whichclinresp) #run a leveneTest to test the equal variance of residuals assumption
+whichclinresp_aov <- aov(tetRPercent.sqr~whichclinresp, tetRresistance) #perform anova when all assumptions are met
+summary(whichclinresp_aov) #display summary statistics
+
+TukeyHSD(whichclinresp_aov, conf.level = 0.95)
+
+firstmastitis_fit <- lm(tetRPercent.sqr~firstmastitis, tetRresistance) #run a linear model
+firstmastitis_res <- firstmastitis_fit$residuals #retrieve the residuals from the model
+shapiro.test(firstmastitis_res) #run a Shapiro-Wilk to test the normality of residuals assumption
+leveneTest(tetRresistance$tetRPercent.sqr, tetRresistance$firstmastitis) #run a leveneTest to test the equal variance of residuals assumption
+firstmastitis_aov <- aov(tetRPercent.sqr~firstmastitis, tetRresistance) #perform anova when all assumptions are met
+summary(firstmastitis_aov) #display summary statistics
+
+TukeyHSD(firstmastitis_aov, conf.level = 0.95)
+```
+Here I have run two one-way ANOVA tests. First null hypothesis: The mean percentage of samples containing tetracycline resistant E. coli for all factor levels of 'first choice/most commonly used class of antibiotic for clinical mastitis' are equal. Alternative hypothesis: at least one factor level mean is not equal. The assumptions of an ANOVA test include the data is a random sample, the residuals are normally distributed, and the residuals have equal variance. The Shapiro-Wilk Normality test of the residuals returns a p-value > 0.05; Therefore we may fail to reject the null hypothesis and assume normality of the residuals. Levene's Test for Homogeneity of Variance of the residuals returns a p-value > 0.05; Therefore we may fail to reject the null hypothesis and assume equal variance of the residuals. All of the ANOVA test assumptions are met. The ANOVA test of the relationship between 'percentages of samples containing tetracycline resistant E. coli' and 'first choice/most commonly used class of antibiotic for clinical mastitis' yields a p-value > 0.05; Therefore, we may fail to reject the null hypothesis and conclude that the factor level means of 'first choice/most commonly used class of antibiotic for clinical mastitis' are equal and there is no significant difference in percentage of samples containing tetracycline resistant E. coli among 'first choice/most commonly used class of antibiotic for clinical mastitis' factor levels.
+
+Second null hypothesis: The mean percentage of samples containing tetracycline resistant E. coli for all factor levels of 'antibiotic that was most commonly used for mastitis at the start of the project' are equal. Alternative hypothesis: at least one factor level mean is not equal. The Shapiro-Wilk Normality test of the residuals returns a p-value > 0.05; Therefore we may fail to reject the null hypothesis and assume normality of the residuals. Levene's Test for Homogeneity of Variance of the residuals returns a p-value > 0.05; Therefore we may fail to reject the null hypothesis and assume equal variance of the residuals. All of the ANOVA test assumptions are met. The ANOVA test of the relationship between 'percentages of samples containing tetracycline resistant E. coli' and 'antibiotic that was most commonly used for mastitis at the start of the project' yields a p-value < 0.05; Therefore, we may reject the null hypothesis and conclude that the factor level means of 'antibiotic that was most commonly used for mastitis at the start of the project' are not equal and there is a significant difference in percentage of samples containing tetracycline resistant E. coli among 'antibiotic that was most commonly used for mastitis at the start of the project' factor levels.
+
+### Results
+The null hypothesis was rejected in favor of my hypothesis that the percentage of samples for a given farm found to contain tetracycline resistant E. coli is correlated with 'Amount of tetracycline used in mg/PCU.' by the Pearson's product-moment correlation test: ($\rho \neq 0$)(t = 41.368, df = 51, p-value < 2.2e-16, $\alpha$ = 0.05 , 95% CI: 0.9747620 0.9916009) I also hypothesized a positive correlation which is consistent with the results of the Pearson's product-moment correlation test: ($\rho$ = 0.985424)
+
+The ANOVA test failed to reject the null hypothesis that the percentage of samples for a given farm found to contain tetracycline resistant E. coli is significantly different among 'first choice/most commonly used class of antibiotic for clinical mastitis' levels: (mean percentage of samples for a given farm found to contain tetracycline resistant E. are equal among 'first choice/most commonly used class of antibiotic for clinical mastitis' levels)(F-statistic = 1.748, p-value = 0.155, $\alpha$ = 0.05, df = 52). This result is inconsistent with my given hypothesis.
+
+The ANOVA test rejected the null hypothesis in favor of my hypothesis that the percentage of samples for a given farm found to contain tetracycline resistant E. coli is significantly different among 'antibiotic most commonly used for mastitis at the start of the project' levels: (at least one mean percentage of samples for a given farm found to contain tetracycline resistant E. is not equal among 'antibiotic most commonly used for mastitis at the start of the project' levels)(f = 3.369, p-value = 0.00775, $\alpha$ = 0.05, df = 52).
+
+### Discussion
+My results suggest that use of Orbenin LA may be a cause of prevalent tetracycline resistant E. coli while use of Mastiplan LC and Penicillimoxycillin may be a cause of scarce tetracycline resistant E. coli; However, each of these antibiotics were not prevalent compared to the other antibiotics which is an indication that the results may be a consequence of small sample size or other farm management factors. My results also suggest that amount of tetracycline used in mg/PCU may be a cause of prevalence of samples for a given farm found to contain tetracycline resistant E. coli. This is a very logical conclusion considering the large correlation coefficient and that bacteria are known to become resistant to antibiotics used against them; However, correlation does not imply causation.
+
+In the future, I would choose to analyze 'first choice/most commonly used class of antibiotic for clinical mastitis' and 'antibiotic most commonly used for mastitis at the start of the project' levels given more farms with preference of the antibiotics that had fewer observations. I would also take data from no tetracycline use to several increments of tetracycline used in mg/PCU and run two-sample T-tests between the increments and no tetracycline use data to determine at what increment percentage of samples for a given farm found to contain tetracycline resistant E. coli becomes significantly different. I would also use a chi-squared tests in the future to account for different farms as a factor in addition to my treatments.
+
+### References
+```{r}
+citation(package = 'readr')
+citation(package = 'here')
+citation(package = 'ggplot2')
+citation(package = 'car')
+citation(package = 'tidyverse')
+citation(package = 'psych')
+```
+Schubert H, Morley K, Puddy EF et al. Reduced Antibacterial Drug Resistance and blaCTX-M $\beta$-Lactamase Gene Carriage in Cattle-Associated Escherichia coli at Low Temperatures, at Sites Dominated by Older Animals, and on Pastureland: Implications for Surveillance. Applied and Environmental Microbiology 2021; 87: e01468-20
+
+Galindo-Méndez, Mario. "Antimicrobial Resistance in <em>Escherichia coli</em>". E. Coli Infections - Importance of Early Diagnosis and Efficient Treatment, edited by Luis Rodrigo, IntechOpen, 2020. 10.5772/intechopen.93115.
+
+
