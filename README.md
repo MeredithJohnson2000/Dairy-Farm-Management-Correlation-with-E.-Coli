@@ -1,0 +1,13 @@
+# Dairy Farm Management and Percentage of Farm Samples Containing Tetracycline Resistant E. coli
+- Identified the antibiotic resistance in a sample that served as the most significant predictor of Total E. coli count
+- Ascertained the farm management practices correlated with and resulting in a significantly different percentage of samples containing that antibiotic resistance
+- Skills:
+  - Data Transformation
+  - Shapiro-Wilk Normality Tests
+  - Histograms
+  - Scatterplots
+  - Boxplots
+  - Levene’s Tests
+  - Pearson’s Product-Moment Correlation Tests
+  - One-Way ANOVA Tests
+- Language: R
